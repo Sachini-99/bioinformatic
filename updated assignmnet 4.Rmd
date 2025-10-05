@@ -1,0 +1,728 @@
+---
+title: "updated assignmnet 4"
+author: "Sachini"
+date: "2025-10-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+# Create data/ folder if needed, then download & load datasets
+dir.create("data", showWarnings = FALSE)
+
+expr_url   <- "https://raw.githubusercontent.com/ghazkha/Assessment4/main/gene_expression.tsv"
+growth_url <- "https://raw.githubusercontent.com/ghazkha/Assessment4/main/growth_data.csv"
+
+if (!file.exists("data/gene_expression.tsv")) {
+  download.file(expr_url,   destfile = "data/gene_expression.tsv")
+}
+if (!file.exists("data/growth_data.csv")) {
+  download.file(growth_url, destfile = "data/growth_data.csv")
+}
+
+# Load datasets
+expr   <- read.table("data/gene_expression.tsv", header = TRUE, sep = "\t", row.names = 1)
+growth <- read.csv("data/growth_data.csv", header = TRUE)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# part 01: Gene expression
+
+
+```{r q1}
+# Q1: inspect first 6 rows and structure
+head(expr)
+str(expr)
+```
+To make sure the gene IDs became the row names, I used read.table() to import the gene_expression.tsv file with row.names = 1.  I then used head(expr) to display the dataset's top six rows.
+The answer is,
+The dataset includes three samples (columns) with 56,200 genes (rows).  The RNA-seq count values for the first six genes are displayed in the table.
+```{r q2}
+# Q2: add a row-wise mean of all expression columns
+expr$mean <- rowMeans(expr, na.rm = TRUE)
+head(expr)
+
+```
+I used rowMeans(expr) to get each gene's mean expression across the three samples.  The dataset now includes this additional vector as a new column named expr$mean.  I then showed this changed table's first six rows.The answer is,
+In order to summarise the average expression of each gene across samples, a new column mean was successfully introduced.
+```{r q3}
+ #  Q3 — list the 10 genes with highest mean
+# ensure the mean exists
+stopifnot("mean" %in% colnames(expr))
+
+# order genes by mean (highest first)
+ord <- order(expr$mean, decreasing = TRUE, na.last = NA)
+
+# take up to the first 10 indices (handles datasets with <10 rows too)
+top_idx <- head(ord, 10)
+
+# build the table using row names as gene IDs
+top_table <- data.frame(
+  Gene = rownames(expr)[top_idx],
+  Mean = expr$mean[top_idx],
+  row.names = NULL
+)
+top_table
+
+```
+I chose the top 10 gene IDs after using order(expr$mean, decreasing = TRUE) to arrange the dataset by the mean column in decreasing order.
+The answer is,
+The majority of the most highly expressed genes are mitochondrial, such as MT-CO1 (mean ≈ 529,317.3), MT-ND4 (≈ 514,235.7), and MT-CO3 (≈ 504,943.7), as would be predicted from RNA-seq data.
+```{r q4}
+# Q4: count how many genes have mean < 10
+sum(expr$mean < 10)
+```
+I used sum() to determine the number of genes that meet the logical constraint expr$mean < 10.
+The answer is,
+The mean expression of 35,988 genes is less than 10.  As is common in RNA-seq research, where only a small selection of genes exhibit high expression, this suggests that the bulk of the genes in the dataset are expressed at extremely low levels.
+```{r q5}
+# Q5: histogram of mean expression values
+hist(expr$mean,
+     main = "Distribution of mean expression",
+     xlab = "Mean expression")
+```
+
+I visualised the distribution of mean expression values for each gene using the hist() function on the expr$mean column.The answer is,
+A smaller percentage of genes have extremely high expression values, while the majority have modest expression, according to the histogram's right-skewed distribution.
+
+# part 01 : Growth Data
+```{r q6}
+# Q6: Import growth_data.csv and check column names
+# (already imported in setup as 'growth')
+head(growth)       # first 6 rows
+colnames(growth)   # list the column names
+```
+```{r 96_diagnose}
+# Diagnostic check: see the structure and exact column names of growth
+str(growth)
+head(growth)
+colnames(growth)
+```
+The setup chunk already used read.csv() to import the dataset growth_data.csv.  I performed a diagnostic check using head(growth) to preview the top six rows and colnames(growth) to list the real column names in order to verify the structure and prevent mistakes in subsequent questions.The answer is,
+Six columns make up the dataset: Site, TreeID, Circumf_2005_cm, Circumf_2010_cm, Circumf_2015_cm, and Circumf_2020_cm.  As necessary for the analysis in Q7–Q10, I calculated 10-year growth using 2005 (start) and 2015 (end).
+
+```{r q7}
+# Q7 — means & SDs at start (2005) and end (2015) for each site
+site  <- factor(growth$Site)
+start <- as.numeric(growth$Circumf_2005_cm)
+endv  <- as.numeric(growth$Circumf_2015_cm)
+
+data.frame(
+  Site       = levels(site),
+  MeanStart  = tapply(start, site, mean, na.rm = TRUE),
+  SDStart    = tapply(start, site, sd,   na.rm = TRUE),
+  MeanEnd    = tapply(endv,  site, mean, na.rm = TRUE),
+  SDEnd      = tapply(endv,  site, sd,   na.rm = TRUE),
+  row.names = NULL
+)
+```
+I used tapply() to aggregate the start and end circumference values (Circumf_2005_cm and Circumf_2015_cm) by site.  Next, I determined each site's mean and standard deviation at both time points.
+The answer is,
+At the North-east site, the mean circumference was 47.7 cm (SD = 7.6) in 2005 and 66.9 cm (SD ≈ 8.2) in 2015. At the South-west location, the average circumference was 44.3 cm (SD = 6.8) in 2005 and 60.8 cm (SD ≈ 7.1) in 2015.
+ This demonstrates that trees in the North-east were somewhat more widely distributed towards the end of the study and were consistently larger at both time points.
+```{r q8}
+# Q8 — boxplots of circumference at start vs end by site
+par(mfrow = c(1,2))
+boxplot(start ~ site, main = "Start circumference (2005)", ylab = "cm")
+boxplot(endv  ~ site, main = "End circumference (2015)",   ylab = "cm")
+par(mfrow = c(1,1))
+```
+I used the boxplot() function to construct side-by-side boxplots for Circumf_2005_cm (2005) and Circumf_2015_cm (2015), categorised by site.
+The answer is,
+Tree circumferences grew at both locations between 2005 and 2015, according to the boxplots. In both years, the median values of North-east trees were higher than those of South-west trees, and the interquartile range grew over time, suggesting that growth results were more variable by 2015.
+```{r q9}
+# Q9 — 10-year growth (2015 - 2005), mean by site
+growth10 <- endv - start
+tapply(growth10, site, mean, na.rm = TRUE)
+```
+I determined growth over a ten-year period by subtracting Circumf_2005_cm from Circumf_2015_cm.  I then calculated the mean growth for each site using tapply().
+The answer is,
+In the North-east, the average increase over the ten years was about 19.22 cm, while in the South-west, it was about 16.45 cm. That the trees at the North-east site grew more than those at the South-west site on average is confirmed by this.
+```{r q10}
+# Q10 — t-test of 10-year growth between the two sites
+if (nlevels(site) == 2) {
+  t.test(growth10[site == levels(site)[1]],
+         growth10[site == levels(site)[2]])
+} else {
+  summary(aov(growth10 ~ site))
+}
+```
+To compare the 10-year growth values between the two sites, I used t.test() to run a two-sample t-test.  In cases where there were more than two locations, an ANOVA would be suitable.
+The answer is,
+Using the two-sample t-test, the p-value was within 0.0503. Given that this is just above the 0.05 cutoff, the null hypothesis cannot be ruled out.  This indicates a borderline result, but no statistically significant difference in 10-year growth between sites at the 5% level.
+
+
+# Part 02: Examining biological sequence diversity
+# q 1 : cording sequence present in genome
+```{r q1_setup, message=FALSE}
+library(seqinr)   # sequence analysis
+library(R.utils)  # for gunzip
+dir.create("data", showWarnings = FALSE)   # create "data" folder if not already there
+```
+
+```{r}
+# download the E. coli genome
+#URL="http://ftp.ensemblgenomes.org/pub/bacteria/release-53/fasta/bacteria_0_collection/escherichia_coli_str_k_12_substr_mg1655_gca_000005845/cds/Escherichia_coli_str_k_12_substr_mg1655_gca_000005845.ASM584v2.cds.all.fa.gz"
+#download.file(URL,destfile="ecoli_cds.fa.gz")
+#gunzip("ecoli_cds.fa.gz")
+```
+
+
+```{r}
+# Read the E. coli CDS FASTA
+ecoli_cds <- seqinr::read.fasta("data/ecoli_cds.fa")
+
+# Quick sanity check
+length(ecoli_cds)        # number of coding sequences
+head(names(ecoli_cds))   # first few IDs
+
+```
+```{r}
+#Manually downloaded ooi genome
+#https://ftp.ensemblgenomes.ebi.ac.uk/pub/bacteria/release-62/fasta/bacteria_4_collection/mycobacterium_tuberculosis_gca_001318445/cds/
+```
+
+
+
+```{r q1_ooi_gunzip, message=FALSE}
+library(R.utils)
+# Unzip only if the .fa doesn’t exist yet
+if (file.exists("data/ooi_cds.fa.gz") && !file.exists("data/ooi_cds.fa")) {
+  gunzip("data/ooi_cds.fa.gz", destname = "data/ooi_cds.fa", overwrite = TRUE)
+}
+# sanity: show what's in data/
+list.files("data")
+```
+```{r q1_ooi_read}
+library(seqinr)
+ooi_cds <- seqinr::read.fasta("data/ooi_cds.fa")
+
+# quick checks
+length(ooi_cds)        # number of coding sequences
+head(names(ooi_cds))   # first few IDs
+```
+```{r q1_table}
+# ensure E. coli is loaded (safe if already loaded)
+if (!exists("ecoli_cds")) {
+  ecoli_cds <- seqinr::read.fasta("data/ecoli_cds.fa")
+}
+
+n_ecoli <- length(ecoli_cds)
+n_ooi   <- length(ooi_cds)
+
+q1_table <- data.frame(
+  Organism  = c("Escherichia coli K-12 MG1655", "Mycobacterium tuberculosis"),
+  CDS_count = c(n_ecoli, n_ooi)
+)
+q1_table
+```
+
+The seqinr package's read.fasta() method was used to import the FASTA files for Mycobacterium TB and E. coli.The length() function was then used to count the number of coding sequences (CDSs) for every organism.
+The answer is,
+In contrast to Mycobacterium tuberculosis, which has 4,741 coding DNA sequences (CDSs), E. coli K-12 MG1655 has 4,239 CDSs.  This suggests that the genome of M. tuberculosis is somewhat larger and more diverse.  M. tuberculosis has more CDSs than the laboratory-adapted E. coli K-12 strain, which is probably due to its pathogenic lifestyle and higher metabolic diversity.
+
+# q2 - total coding DNA
+
+```{r q2_setup}
+# reload only if objects not already in memory
+if (!exists("ecoli_cds")) ecoli_cds <- seqinr::read.fasta("data/ecoli_cds.fa")
+if (!exists("ooi_cds"))   ooi_cds   <- seqinr::read.fasta("data/ooi_cds.fa")
+
+# check counts again just to confirm
+length(ecoli_cds); length(ooi_cds)
+```
+
+# calculate total coding DNA
+```{r}
+# Calculate total number of nucleotides in all CDS
+ecoli_total_nt <- sum(sapply(ecoli_cds, length))
+ooi_total_nt   <- sum(sapply(ooi_cds, length))
+
+# Convert to megabases (millions of nucleotides)
+ecoli_total_mb <- round(ecoli_total_nt / 1e6, 2)
+ooi_total_mb   <- round(ooi_total_nt / 1e6, 2)
+
+ecoli_total_nt; ooi_total_nt
+```
+# Make the table
+```{r}
+q2_table <- data.frame(
+  Organism        = c("E. coli K-12 MG1655", "Mycobacterium tuberculosis"),
+  Total_CDS       = c(length(ecoli_cds), length(ooi_cds)),   # from Q11
+  Total_nt        = c(ecoli_total_nt, ooi_total_nt),
+  Total_Mb        = c(ecoli_total_mb, ooi_total_mb)
+)
+q2_table
+```
+
+Each coding sequence's length was determined using sapply(..., length).To compare the overall genome coding capacity, these lengths were added up using sum() to determine the total amount of coding DNA each organism. The result was then converted to megabases (Mb).
+The answer is,
+The coding DNA of Mycobacterium TB is 3.08 Mb across 4,741 CDSs, whereas that of E. coli K-12 MG1655 is 3.98 Mb across 4,239 CDSs.  There is less total coding DNA in M. tuberculosis overall because, although having more CDSs, the average CDS length is shorter.  Biological distinctions are reflected in this: M. tuberculosis has more genes, but they are often smaller, whereas E. coli has fewer but generally longer coding sequences.  M. tuberculosis is a specialised pathogen with numerous compact genes tailored to host infection, while E. coli is a metabolically versatile bacterium. These distinctions are consistent with their lifestyles.
+
+# q 3: Calculate the length of all coding sequences in these two organisms 
+
+```{r q3_setup}
+# Load from files only if not already in memory
+if (!exists("ecoli_cds")) ecoli_cds <- seqinr::read.fasta("data/ecoli_cds.fa")
+if (!exists("ooi_cds"))   ooi_cds   <- seqinr::read.fasta("data/ooi_cds.fa")
+
+# quick check (should match your Q1 counts)
+length(ecoli_cds); length(ooi_cds)
+```
+```{r q3_lengths}
+# Length (nt) of each coding sequence
+len_ecoli <- sapply(ecoli_cds, length)
+len_ooi   <- sapply(ooi_cds,   length)
+
+# quick sanity
+summary(len_ecoli)
+summary(len_ooi)
+```
+```{r q3_boxplot}
+boxplot(list(`E. coli` = len_ecoli, `M. tuberculosis` = len_ooi),
+        ylab = "CDS length (nt)", main = "CDS length distributions")
+```
+```{r q3_stats}
+mean_len_ecoli   <- mean(len_ecoli,  na.rm = TRUE)
+median_len_ecoli <- median(len_ecoli, na.rm = TRUE)
+mean_len_ooi     <- mean(len_ooi,    na.rm = TRUE)
+median_len_ooi   <- median(len_ooi,   na.rm = TRUE)
+
+q3_table <- data.frame(
+  Organism   = c("E. coli K-12 MG1655", "Mycobacterium tuberculosis"),
+  Mean_nt    = c(round(mean_len_ecoli, 1), round(mean_len_ooi, 1)),
+  Median_nt  = c(round(median_len_ecoli,1), round(median_len_ooi,1))
+)
+q3_table
+```
+
+Sapply(..., length) was used to determine each CDS's length.Summary statistics were calculated using the mean() and median() functions, and the distribution of CDS lengths between Mycobacterium tuberculosis and E. coli was visualised and compared using a boxplot().
+The answer is,
+According to the table, the mean CDS length of Mycobacterium tuberculosis is r round(mean_len_ooi,1) nt (median r round(median_len_ooi,1) nt), while the mean CDS length of E. coli is r round(mean_len_ecoli,1) nt (median r round(median_len_ecoli,1) nt).  The boxplot unequivocally demonstrates that compared to M. tuberculosis, E. coli coding sequences are typically longer and exhibit a somewhat wider range of lengths.  Despite having fewer genes, E. coli showed a longer total coding DNA length in Q12, which is consistent with this conclusion.  These findings collectively imply that M. tuberculosis has more compact CDSs, an adaptation that supports its specialised pathogenic lifestyle within host cells, whereas E. coli retains fewer but bigger genes, reflecting its wide metabolic adaptability.
+
+```{r}
+# Safe reload (does nothing if already in memory)
+if (!exists("ecoli_cds")) ecoli_cds <- seqinr::read.fasta("data/ecoli_cds.fa")
+if (!exists("ooi_cds"))   ooi_cds   <- seqinr::read.fasta("data/ooi_cds.fa")
+
+length(ecoli_cds); length(ooi_cds)  # quick check
+
+```
+
+# q 4: Calculate the frequency of DNA bases in the total coding sequences for both organisms
+
+```{r}
+# Flatten all CDS into one long vector of bases per organism
+nt_levels <- c("A","C","G","T")
+
+ecoli_nt_counts <- table(factor(toupper(unlist(ecoli_cds)), levels = nt_levels))
+ooi_nt_counts   <- table(factor(toupper(unlist(ooi_cds)),   levels = nt_levels))
+
+ecoli_nt_pct <- 100 * ecoli_nt_counts / sum(ecoli_nt_counts)
+ooi_nt_pct   <- 100 * ooi_nt_counts   / sum(ooi_nt_counts)
+
+# Tidy table for the report
+q4_nt_table <- data.frame(
+  Base        = nt_levels,
+  Ecoli_Count = as.integer(ecoli_nt_counts),
+  Ecoli_Pct   = round(as.numeric(ecoli_nt_pct), 2),
+  MTB_Count   = as.integer(ooi_nt_counts),
+  MTB_Pct     = round(as.numeric(ooi_nt_pct), 2)
+)
+q4_nt_table
+
+```
+
+# Bar plot — nucleotide frequency
+```{r}
+mat_nt <- rbind(
+  "E. coli"          = as.numeric(ecoli_nt_pct),
+  "M. tuberculosis"  = as.numeric(ooi_nt_pct)
+)
+colnames(mat_nt) <- nt_levels
+
+barplot(mat_nt, beside = TRUE, ylab = "Frequency (%)",
+        main = "Nucleotide frequency across all CDS")
+legend("topright", legend = rownames(mat_nt), bty = "n", fill = grey(c(0.4, 0.8)))
+
+```
+
+# Amino-acid frequencies (translate CDS → AA, then count)
+```{r}
+# Helper to translate one CDS to amino acids and drop stops/unknowns
+translate_one <- function(dna_seq) {
+  aa <- seqinr::translate(dna_seq, frame = 0, ambiguous = TRUE)   # vector of 1-letter AAs
+  aa <- aa[aa != "*" & aa != "X"]                                 # remove stop/unknown
+  aa
+}
+
+# Translate all CDS for each organism and combine
+aa_ecoli <- unlist(lapply(ecoli_cds, translate_one), use.names = FALSE)
+aa_ooi   <- unlist(lapply(ooi_cds,   translate_one), use.names = FALSE)
+
+# Standard 20 AAs (1-letter codes)
+aa_levels <- c("A","R","N","D","C","Q","E","G","H","I",
+               "L","K","M","F","P","S","T","W","Y","V")
+
+ecoli_aa_counts <- table(factor(aa_ecoli, levels = aa_levels))
+ooi_aa_counts   <- table(factor(aa_ooi,   levels = aa_levels))
+
+ecoli_aa_pct <- 100 * ecoli_aa_counts / sum(ecoli_aa_counts)
+ooi_aa_pct   <- 100 * ooi_aa_counts   / sum(ooi_aa_counts)
+
+# Tidy table for the report
+q4_aa_table <- data.frame(
+  AA          = aa_levels,
+  Ecoli_Pct   = round(as.numeric(ecoli_aa_pct), 2),
+  MTB_Pct     = round(as.numeric(ooi_aa_pct), 2)
+)
+q4_aa_table
+
+```
+# Bar plots — amino-acid frequency (two side-by-side panels)
+```{r}
+par(mfrow = c(1,2))
+barplot(as.numeric(ecoli_aa_pct), names.arg = aa_levels, las = 2,
+        ylab = "Frequency (%)", main = "Amino-acid frequency: E. coli")
+barplot(as.numeric(ooi_aa_pct),   names.arg = aa_levels, las = 2,
+        ylab = "Frequency (%)", main = "Amino-acid frequency: M. tuberculosis")
+par(mfrow = c(1,1))
+
+```
+After combining all CDSs with unlist(), the frequency of each nucleotide (A, C, G, and T) was counted using the table() method.
+We then divided by the total amount of nucleotides to determine relative percentages. The translate() method was used to convert each CDS into amino acids in order to analyse protein composition, and table() was used to calculate the frequency of each amino acid. E. coli and Mycobacterium tuberculosis nucleotide and amino acid frequencies were visually compared using bar graphs.
+The answer is, 
+Mycobacterium TB contains a significantly larger fraction of G and C bases than E. coli, according to the nucleotide frequency study, indicating its high-GC genomic composition.  As is common with enteric bacteria, E. coli exhibits a more balanced base composition.The bar plots showed changes in amino acid utilisation that corresponded to the translation of the CDSs into amino acids.  M. tuberculosis exhibited comparatively higher amounts of Lysine (Lys) and Asparagine (Asn), which are encoded by AT-rich codons, whereas E. coli displayed higher frequencies of amino acids such as Glycine (Gly), Alanine (Ala), Proline (Pro), and Arginine (Arg) in response to GC-rich codons.
+
+# q 5: Build codon usage for each organism (counts, freq, RSCU)
+```{r}
+# Helper: total codon counts across ALL CDS for one organism
+total_codon_counts <- function(cds_list) {
+  per_gene <- lapply(cds_list, function(s) seqinr::uco(s))   # named vector per gene
+  Reduce("+", per_gene)                                      # sum by matching names
+}
+
+# Helper: RSCU across ALL CDS (as data.frame with AA, codon, RSCU)
+total_rscu_df <- function(cds_list) {
+  seq_all <- unlist(cds_list, use.names = FALSE)
+  seqinr::uco(seq_all, index = "rscu", as.data.frame = TRUE)
+}
+
+# --- E. coli ---
+ec_counts <- total_codon_counts(ecoli_cds)
+ec_freq   <- ec_counts / sum(ec_counts)
+ec_rscu   <- total_rscu_df(ecoli_cds)      # columns: AA, codon, RSCU, ...
+
+ec_table <- merge(
+  data.frame(codon = names(ec_counts),
+             EC_Count = as.numeric(ec_counts),
+             EC_Freq  = as.numeric(ec_freq)),
+  ec_rscu[, c("codon","AA","RSCU")],
+  by = "codon", all.x = TRUE
+)
+names(ec_table)[names(ec_table)=="RSCU"] <- "EC_RSCU"
+
+# --- Mycobacterium tuberculosis (your OOI) ---
+mtb_counts <- total_codon_counts(ooi_cds)
+mtb_freq   <- mtb_counts / sum(mtb_counts)
+mtb_rscu   <- total_rscu_df(ooi_cds)
+
+mtb_table <- merge(
+  data.frame(codon = names(mtb_counts),
+             MTB_Count = as.numeric(mtb_counts),
+             MTB_Freq  = as.numeric(mtb_freq)),
+  mtb_rscu[, c("codon","AA","RSCU")],
+  by = "codon", all.x = TRUE
+)
+names(mtb_table)[names(mtb_table)=="RSCU"] <- "MTB_RSCU"
+
+# Merge both into one comparison table
+codon_tab <- merge(ec_table, mtb_table, by = c("codon","AA"), all = TRUE)
+codon_tab <- codon_tab[order(codon_tab$AA, codon_tab$codon), ]
+head(codon_tab, 10)   # preview
+
+```
+
+
+# Simple “codon usage bias” score (mean |RSCU−1|)
+```{r}
+# Exclude stops and single-codon AAs (Met/Trp) when summarising bias
+syn_mask <- !(codon_tab$AA %in% c("Stp","Met","Trp"))
+
+bias_ec  <- mean(abs(codon_tab$EC_RSCU[syn_mask]  - 1), na.rm = TRUE)
+bias_mtb <- mean(abs(codon_tab$MTB_RSCU[syn_mask] - 1), na.rm = TRUE)
+
+bias_table <- data.frame(
+  Organism = c("E. coli K-12 MG1655", "Mycobacterium tuberculosis"),
+  Mean_abs_RSCU_dev = round(c(bias_ec, bias_mtb), 3)
+)
+bias_table
+
+```
+
+# charts:  Codons with largest RSCU difference (barplot)
+
+```{r}
+# Find top codons where RSCU differs the most
+diff_rscu <- abs(codon_tab$EC_RSCU - codon_tab$MTB_RSCU)
+ord <- order(diff_rscu, decreasing = TRUE)
+topk <- 20L
+sel  <- ord[seq_len(min(topk, length(ord)))]
+
+mat_rscu <- rbind("E. coli" = codon_tab$EC_RSCU[sel],
+                  "M. tuberculosis" = codon_tab$MTB_RSCU[sel])
+colnames(mat_rscu) <- codon_tab$codon[sel]
+
+par(mar = c(8,4,3,1))
+barplot(mat_rscu, beside = TRUE, las = 2,
+        ylab = "RSCU", main = "Top codons by RSCU difference")
+legend("topleft", legend = rownames(mat_rscu), bty = "n", fill = gray(c(0.3, 0.7)))
+
+```
+
+# Same codons — usage frequency (barplot)
+```{r}
+mat_freq <- rbind("E. coli" = codon_tab$EC_Freq,
+                  "M. tuberculosis" = codon_tab$MTB_Freq)
+colnames(mat_freq) <- codon_tab$codon
+
+# Use the same selected codons for readability
+mat_freq_top <- mat_freq[, colnames(mat_rscu), drop = FALSE]
+
+par(mar = c(8,4,3,1))
+barplot(mat_freq_top, beside = TRUE, las = 2,
+        ylab = "Frequency", main = "Codon frequency (top-difference set)")
+legend("topleft", legend = rownames(mat_freq_top), bty = "n", fill = gray(c(0.3, 0.7)))
+
+```
+
+I used seqinr's uco() to calculate genome-wide codon use.  Overall counts and normalised frequencies were obtained for each organism by adding the codon counts across all CDS.  I then computed the relative synonymous codon utilisation (RSCU) for the concatenated coding sequences: 1 = expected, >1 = preferred, <1 = underutilised.  I utilised the average absolute deviation of RSCU from 1 for synonymous codons (not including Met/Trp and pauses) as a basic codon-bias metric.  The preferences of different organisms are highlighted by bar graphs of (i) the codons with the biggest RSCU variances and (ii) their usage frequencies.
+
+The answer is,
+Significant organism-specific preferences are evident from the codon usage tables: a number of codons exhibit RSCU > 1 in one species and < 1 in the other, suggesting differential synonymous codon selection.  E. Coli has a genome-wide codon use bias of r ifelse(bias_ec>bias_mtb,"greater","lower or comparable") compared to M. tuberculosis, as indicated by the overall codon-bias index (mean |RSCU−1|) of r round(bias_ec,3) for E. Coli and r round(bias_mtb,3) for M. tuberculosis.  Although E. coli has a more equal profile, which is consistent with variations in nucleotide composition and translational selection, M. tuberculosis, which has a high-GC genome, tends to choose GC-rich codons (e.g., for Gly, Ala, Pro, and Arg), according to the top-difference plots.
+
+# Setup (reuse AA sequences or compute)
+
+```{r}
+# Safe reload DNA if needed
+if (!exists("ecoli_cds")) ecoli_cds <- seqinr::read.fasta("data/ecoli_cds.fa")
+if (!exists("ooi_cds"))   ooi_cds   <- seqinr::read.fasta("data/ooi_cds.fa")
+
+# Translate DNA -> amino acids (reusing the helper from earlier is fine)
+translate_one <- function(dna_seq) {
+  aa <- seqinr::translate(dna_seq, frame = 0, ambiguous = TRUE)
+  aa[aa != "*" & aa != "X"]  # drop stops/unknowns
+}
+
+aa_ecoli <- if (!exists("aa_ecoli")) unname(lapply(ecoli_cds, translate_one)) else aa_ecoli
+aa_ooi   <- if (!exists("aa_ooi"))   unname(lapply(ooi_cds,   translate_one)) else aa_ooi
+
+length(aa_ecoli); length(aa_ooi)  # number of proteins
+
+```
+# q 6: Helpers (count k-mers and compute enrichment)
+
+```{r}
+# --- Translate DNA -> amino acids (plain characters), drop stop/unknown ---
+translate_one <- function(dna_seq) {
+  aa <- seqinr::translate(dna_seq, frame = 0, ambiguous = TRUE)
+  aa <- as.character(aa)
+  aa <- aa[aa != "*" & aa != "X" & !is.na(aa)]
+  aa
+}
+
+# --- Count AA k-mers INSIDE each protein, then sum across proteins ---
+count_kmers_aa <- function(aa_list, k) {
+  tally <- integer(0); nm_tally <- character(0)
+  for (aa in aa_list) {
+    n <- length(aa)
+    if (n >= k) {
+      kmers <- vapply(seq_len(n - k + 1L),
+                      function(i) paste0(aa[i:(i + k - 1L)], collapse = ""),
+                      FUN.VALUE = character(1))
+      ct <- table(kmers)
+      nm <- names(ct)
+      # add to existing
+      if (length(nm_tally)) {
+        idx <- match(nm, nm_tally, nomatch = 0L)
+        if (any(idx > 0L)) tally[idx[idx>0]] <- tally[idx[idx>0]] + as.integer(ct[idx>0])
+        if (any(idx == 0L)) {
+          nm_new <- nm[idx == 0L]
+          tally <- c(tally, as.integer(ct[nm_new])); nm_tally <- c(nm_tally, nm_new)
+        }
+      } else {
+        tally <- as.integer(ct); nm_tally <- names(ct)
+      }
+    }
+  }
+  names(tally) <- nm_tally
+  o <- order(names(tally))
+  tally[o]
+}
+
+# --- Expected counts: zero-order AA model (product of single-AA probs) ---
+expected_kmer_counts <- function(aa_list, k, kmer_names) {
+  aa_all <- unlist(aa_list, use.names = FALSE)
+  aa_all <- aa_all[!is.na(aa_all)]
+  if (!length(aa_all)) return(rep(0, length(kmer_names)))
+  p <- table(aa_all); p <- p / sum(p)
+  total_windows <- sum(pmax(0L, sapply(aa_list, length) - k + 1L))
+  prod_p <- vapply(kmer_names, function(w) {
+    ch <- strsplit(w, "", fixed = TRUE)[[1]]
+    if (all(ch %in% names(p))) prod(as.numeric(p[ch])) else 0
+  }, numeric(1))
+  total_windows * prod_p
+}
+
+# --- Enrichment table: obs, exp, log2(obs/exp) ---
+kmer_enrichment <- function(aa_list, k, min_count = 1L) {
+  obs <- count_kmers_aa(aa_list, k)
+  if (length(obs) == 0)
+    return(data.frame(kmer=character(), obs=integer(), exp=numeric(),
+                      log2_enrichment=numeric(), stringsAsFactors = FALSE))
+  exp <- expected_kmer_counts(aa_list, k, names(obs))
+  eps <- 1e-9
+  df <- data.frame(
+    kmer = names(obs),
+    obs  = as.numeric(obs),
+    exp  = as.numeric(exp),
+    log2_enrichment = log2((as.numeric(obs) + eps) / (exp + eps)),
+    stringsAsFactors = FALSE
+  )
+  df <- df[df$obs >= min_count, , drop = FALSE]   # drop ultra-rare
+  rownames(df) <- NULL
+  df
+}
+
+# --- Pick top-N over & under (safe on empty data) ---
+select_top <- function(df, n = 10L) {
+  if (!nrow(df) || is.null(df$log2_enrichment))
+    return(list(over = df, under = df))
+  ord <- order(df$log2_enrichment, decreasing = TRUE)
+  list(
+    over  = df[ head(ord, n), , drop = FALSE],
+    under = df[ tail(ord, n), , drop = FALSE]
+  )
+}
+
+# --- Helper to fetch log2 enrichment for chosen k-mers ---
+get_l2e <- function(df, kmers) {
+  m <- match(kmers, df$kmer)
+  x <- df$log2_enrichment[m]
+  x[is.na(x)] <- 0
+  x
+}
+
+```
+
+# Load DNA, translate to AA (fresh build of aa_ecoli / aa_ooi)
+
+```{r}
+if (!exists("ecoli_cds")) ecoli_cds <- seqinr::read.fasta("data/ecoli_cds.fa")
+if (!exists("ooi_cds"))   ooi_cds   <- seqinr::read.fasta("data/ooi_cds.fa")
+
+aa_ecoli <- lapply(ecoli_cds, translate_one)
+aa_ooi   <- lapply(ooi_cds,   translate_one)
+
+# quick sanity
+length(aa_ecoli); length(aa_ooi)
+mean(lengths(aa_ecoli)); mean(lengths(aa_ooi))
+
+```
+
+# Compute k-mer enrichment for k = 3, 4, 5 (OOI + E. coli)
+
+```{r}
+set.seed(1)
+
+res_ooi_k3 <- kmer_enrichment(aa_ooi,   k = 3, min_count = 1)
+res_ooi_k4 <- kmer_enrichment(aa_ooi,   k = 4, min_count = 1)
+res_ooi_k5 <- kmer_enrichment(aa_ooi,   k = 5, min_count = 1)
+
+res_ec_k3  <- kmer_enrichment(aa_ecoli, k = 3, min_count = 1)
+res_ec_k4  <- kmer_enrichment(aa_ecoli, k = 4, min_count = 1)
+res_ec_k5  <- kmer_enrichment(aa_ecoli, k = 5, min_count = 1)
+
+# sanity checks (should be >0 rows and numeric summaries)
+nrow(res_ooi_k3); nrow(res_ec_k3)
+summary(res_ooi_k3$log2_enrichment); summary(res_ec_k3$log2_enrichment)
+
+```
+
+# Select OOI top-10 over & under (for each k)
+
+```{r}
+top_ooi_k3 <- select_top(res_ooi_k3, 10)
+top_ooi_k4 <- select_top(res_ooi_k4, 10)
+top_ooi_k5 <- select_top(res_ooi_k5, 10)
+
+# show tables if you want them printed
+head(top_ooi_k3$over, 10); head(top_ooi_k3$under, 10)
+
+```
+# Plots (compare OOI vs E. coli using the same k-mers)
+
+# k = 3 — OVER-represented in OOI
+```{r}
+km_over_k3 <- top_ooi_k3$over$kmer
+mat_over_k3 <- rbind(
+  "OOI (M. tuberculosis)" = get_l2e(res_ooi_k3, km_over_k3),
+  "E. coli"               = get_l2e(res_ec_k3,  km_over_k3)
+)
+colnames(mat_over_k3) <- km_over_k3
+par(mar = c(8,4,3,1))
+barplot(mat_over_k3, beside = TRUE, las = 2,
+        ylab = "log2(obs/exp)", main = "k=3: OOI top-10 OVER vs E. coli")
+legend("topleft", legend = rownames(mat_over_k3), bty = "n", fill = gray(c(0.3,0.7)))
+
+```
+
+# k = 3 — UNDER-represented in OOI
+
+```{r}
+km_under_k3 <- top_ooi_k3$under$kmer
+mat_under_k3 <- rbind(
+  "OOI (M. tuberculosis)" = get_l2e(res_ooi_k3, km_under_k3),
+  "E. coli"               = get_l2e(res_ec_k3,  km_under_k3)
+)
+colnames(mat_under_k3) <- km_under_k3
+par(mar = c(8,4,3,1))
+barplot(mat_under_k3, beside = TRUE, las = 2,
+        ylab = "log2(obs/exp)", main = "k=3: OOI top-10 UNDER vs E. coli")
+legend("topleft", legend = rownames(mat_under_k3), bty = "n", fill = gray(c(0.3,0.7)))
+
+```
+
+# summary table
+```{r}
+sum_k3 <- rbind(
+  data.frame(Set = "OVER",  top_ooi_k3$over[,  c("kmer","obs","exp","log2_enrichment")]),
+  data.frame(Set = "UNDER", top_ooi_k3$under[, c("kmer","obs","exp","log2_enrichment")])
+)
+names(sum_k3)[names(sum_k3) == "log2_enrichment"] <- "OOI_log2_enr"
+sum_k3$Ecoli_log2_enr <- get_l2e(res_ec_k3, sum_k3$kmer)
+sum_k3
+
+```
+After translating each CDS into amino acids, k-mers (k=3–5) were tallied for each protein and added up.  Using the global amino acid composition (zero-order model), expected numbers were calculated.  Log2 (obs/exp) was used to score enrichment.  Using paired barplots, I compared the enrichment of the top ten over- and under-represented k-mers in the organism of interest with that of E. coli.
+
+The answer is ,
+There are a number of k-mers that are significantly overrepresented in M. tuberculosis but not in E. coli, and vice versa.  The paired plots reveal that species-specific restrictions on short peptide motifs are indicated by the frequent sign or magnitude flips of enrichment patterns.  When comparing a high-GC intracellular pathogen to a metabolically flexible bacteria, differences are probably caused by GC-driven codon use, changes in amino acid composition, and selection for protein structure or membrane attachment.
+
